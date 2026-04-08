@@ -9,7 +9,7 @@ Architecture:
 - ttp-service (Spring Boot + MySQL)
 
 Environment:
-- Docker / Docker Compose [cite: 20]
+- Docker / Docker Compose 
 
 Goal:
 Emulation of a Trusted Third Party environment and secure client-server data exchange scenario.
