@@ -1,0 +1,11 @@
+services:
+  mysql:
+    image: mysql:8.4
+  ttp-service:
+    build: ./ttp-service
+  server-service:
+    build: ./server-service
+  client-backend:
+    build: ./client-backend
+  client-frontend:
+    build: ./client-frontend

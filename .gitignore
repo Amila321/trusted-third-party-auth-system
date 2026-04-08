@@ -1,0 +1,30 @@
+# Java
+target/
+*.class
+*.log
+*.jar
+*.war
+*.iml
+.idea/
+.project
+.settings/
+.classpath
+
+# Node
+node_modules/
+dist/
+coverage/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+
+# Logs
+logs/
+*.out
+
+# Maven wrapper optional
+.mvn/wrapper/maven-wrapper.jar

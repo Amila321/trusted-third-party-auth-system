@@ -1,2 +1,15 @@
-# trusted-third-party-auth-system
-Secure client-server data exchange environment using a Trusted Third Party (TTP). Implements RSA-4096, AES-256, and X.509 certificates for multi-stage authentication and encrypted communication.
+# SCS Project
+
+[cite_start]Project for the Security of Computer Systems course[cite: 3].
+
+Architecture:
+- client-frontend (React)
+- client-backend (Spring Boot)
+- server-service (Spring Boot)
+- ttp-service (Spring Boot + MySQL)
+
+Environment:
+- [cite_start]Docker / Docker Compose [cite: 20]
+
+Goal:
+[cite_start]Emulation of a Trusted Third Party environment and secure client-server data exchange scenario[cite: 4, 9].
