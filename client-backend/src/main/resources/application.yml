@@ -1,0 +1,12 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: client-backend
+
+services:
+  server-service:
+    base-url: http://localhost:8081
+  ttp-service:
+    base-url: http://localhost:8080

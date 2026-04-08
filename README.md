@@ -1,6 +1,6 @@
 # SCS Project
 
-[cite_start]Project for the Security of Computer Systems course[cite: 3].
+Project for the Security of Computer Systems course.
 
 Architecture:
 - client-frontend (React)
@@ -9,7 +9,7 @@ Architecture:
 - ttp-service (Spring Boot + MySQL)
 
 Environment:
-- [cite_start]Docker / Docker Compose [cite: 20]
+- Docker / Docker Compose [cite: 20]
 
 Goal:
-[cite_start]Emulation of a Trusted Third Party environment and secure client-server data exchange scenario[cite: 4, 9].
+Emulation of a Trusted Third Party environment and secure client-server data exchange scenario.
