@@ -2,9 +2,17 @@
 
 This plan is based on the current repository state and the project instruction for an emulated Trusted Third Party, Server, and User environment. The current repository already contains the initial multi-module structure, three Spring Boot services, a React/Vite frontend, shared Java modules, health endpoints, and an incomplete Docker Compose definition. The remaining work should extend this skeleton into the required authentication and encrypted data exchange scenario.
 
+## Architectural Decision: No MySQL for the MVP
+
+MySQL should not be used in the current implementation plan. The project task focuses on authentication through a Trusted Third Party, RSA 4096, X.509 public key certificates, AES-256 session keys, encrypted User-Server data exchange, logs, and validation scenarios. It assumes only one User, so a relational database is not required for the MVP.
+
+TTP should keep its working state in memory during runtime. This includes registered identities, public keys, issued certificates, authentication state, and active session keys. Simple in-memory services or maps are enough for the required demonstration and keep the implementation focused on the security protocol.
+
+The existing MySQL/JPA dependencies in `ttp-service` may be removed later as cleanup, but no new database code, repositories, entities, migrations, or MySQL container configuration should be added while implementing the MVP.
+
 ## Phase 1: Stabilize Local and Container Runtime
 
-Goal: make the existing services easy to run in a repeatable way before adding security functionality.
+Goal: make the existing services easy to run in a repeatable way before adding security functionality, without adding a database dependency.
 
 Files to edit or create:
 
@@ -20,17 +28,17 @@ Files to edit or create:
 
 Tasks:
 
-1. Add Dockerfiles for all declared Docker Compose services.
-2. Configure Docker Compose ports for:
+1. Keep Docker Compose limited to application services only: `ttp-service`, `server-service`, `client-backend`, and `client-frontend`.
+2. Do not add a MySQL service to Docker Compose.
+3. Add Dockerfiles for all declared application services.
+4. Configure Docker Compose ports for:
    - `ttp-service`: `8080`
    - `server-service`: `8081`
    - `client-backend`: `8082`
    - `client-frontend`: Vite or production frontend port
-   - `mysql`: internal database port
-3. Replace localhost service URLs inside containers with Docker service names, for example `http://server-service:8081` and `http://ttp-service:8080`.
-4. Add profile-based configuration if both local and Docker execution are needed.
-5. Configure MySQL connection properties for `ttp-service` once persistence is implemented.
-6. Update `README.md` with the verified run commands.
+5. Replace localhost service URLs inside containers with Docker service names, for example `http://server-service:8081` and `http://ttp-service:8080`.
+6. Add profile-based configuration if both local and Docker execution are needed.
+7. Update `README.md` with the verified run commands.
 
 ## Phase 2: Define Shared DTO Contracts
 
@@ -87,15 +95,15 @@ Tasks:
 
 ## Phase 4: Implement TTP Registration and Certificate Issuance
 
-Goal: make `ttp-service` responsible for registering User and Server identities and issuing public key certificates.
+Goal: make `ttp-service` responsible for registering User and Server identities and issuing public key certificates without persistent database storage.
 
 Files to edit or create:
 
 - `ttp-service/src/main/java/com/scs/ttp/controller/RegistrationController.java`
 - `ttp-service/src/main/java/com/scs/ttp/service/RegistrationService.java`
+- `ttp-service/src/main/java/com/scs/ttp/service/InMemoryIdentityStore.java`
 - `ttp-service/src/main/java/com/scs/ttp/service/TtpKeyService.java`
 - `ttp-service/src/main/java/com/scs/ttp/model/RegisteredIdentity.java`
-- `ttp-service/src/main/java/com/scs/ttp/repository/RegisteredIdentityRepository.java`
 - `ttp-service/src/main/resources/application.yml`
 - `ttp-service/src/test/java/com/scs/ttp/...`
 
@@ -103,10 +111,11 @@ Tasks:
 
 1. Add endpoints for User and Server registration/login initiation.
 2. Generate or load TTP key material needed to decrypt submitted IDs and issue certificates.
-3. Store registered identities, public keys, issued certificates, and identity type in MySQL.
-4. Return X.509 public key certificates to User and Server after successful registration.
-5. Add timestamped logs for registration, certificate issuance, and validation events.
-6. Add tests for successful registration, duplicate registration, invalid request data, and certificate generation.
+3. Store registered identities, public keys, issued certificates, and identity type in an in-memory store.
+4. Do not create JPA repositories, database entities, migrations, or MySQL configuration.
+5. Return X.509 public key certificates to User and Server after successful registration.
+6. Add timestamped logs for registration, certificate issuance, and validation events.
+7. Add tests for successful registration, duplicate registration, invalid request data, and certificate generation.
 
 ## Phase 5: Implement Server-Side Service Request Flow
 
@@ -138,6 +147,7 @@ Files to edit or create:
 - `ttp-service/src/main/java/com/scs/ttp/controller/AuthenticationController.java`
 - `ttp-service/src/main/java/com/scs/ttp/service/AuthenticationService.java`
 - `ttp-service/src/main/java/com/scs/ttp/service/SessionKeyService.java`
+- `ttp-service/src/main/java/com/scs/ttp/service/InMemorySessionStore.java`
 - `client-backend/src/main/java/com/scs/clientbackend/controller/AuthenticationController.java`
 - `client-backend/src/main/java/com/scs/clientbackend/service/ClientAuthenticationService.java`
 - `client-backend/src/main/java/com/scs/clientbackend/service/TtpClient.java`
@@ -150,9 +160,10 @@ Tasks:
 1. Add TTP endpoints for Server authentication validation and User authentication validation.
 2. Add client-backend logic for sending User authentication data to TTP.
 3. Generate the AES-256 session key after successful validation.
-4. Encrypt the session key separately for User and Server using their public keys.
-5. Return OK/failed authentication status to both sides.
-6. Add tests for successful authentication, incorrect User certificate, incorrect Server certificate, invalid ID, and failed decryption.
+4. Store active authentication/session state in memory only.
+5. Encrypt the session key separately for User and Server using their public keys.
+6. Return OK/failed authentication status to both sides.
+7. Add tests for successful authentication, incorrect User certificate, incorrect Server certificate, invalid ID, and failed decryption.
 
 ## Phase 7: Implement Encrypted Client-Server Data Exchange
 
@@ -266,16 +277,31 @@ Tasks:
 4. Verify network connectivity between User physical machine, Server VM, and TTP VM.
 5. Document the final presentation runbook.
 
+## Optional Cleanup After MVP Flow Works
+
+Files to edit:
+
+- `ttp-service/pom.xml`
+- `ttp-service/src/main/resources/application.yml`
+
+Tasks:
+
+1. Remove `spring-boot-starter-data-jpa` from `ttp-service` if it remains unused.
+2. Remove `mysql-connector-j` from `ttp-service` if it remains unused.
+3. Remove JDBC/Hibernate autoconfiguration exclusions if they become unnecessary after dependency cleanup.
+4. Keep this cleanup separate from the main security-flow implementation to avoid mixing architectural changes with protocol work.
+
 ## Suggested Implementation Order
 
-1. Complete Docker/local runtime setup.
+1. Complete Docker/local runtime setup without MySQL.
 2. Implement shared DTOs.
 3. Implement cryptographic utilities and tests.
-4. Implement TTP registration and certificate issuance.
+4. Implement TTP registration and certificate issuance with in-memory storage.
 5. Implement Server authentication forwarding.
-6. Implement User authentication and session key distribution.
+6. Implement User authentication and session key distribution with in-memory session state.
 7. Implement encrypted data exchange.
 8. Extend frontend scenario UI.
 9. Add forged certificate/negative validation scenario.
 10. Add logs, tests, Doxygen documentation, and report-supporting documentation.
 11. Prepare VM deployment documentation and final demonstration steps.
+12. Optionally remove unused JPA/MySQL dependencies after the MVP flow works.
