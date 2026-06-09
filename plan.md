@@ -2,6 +2,20 @@
 
 This plan is based on the current repository state and the project instruction for an emulated Trusted Third Party, Server, and User environment. The current repository already contains the initial multi-module structure, three Spring Boot services, a React/Vite frontend, shared Java modules, health endpoints, and an incomplete Docker Compose definition. The remaining work should extend this skeleton into the required authentication and encrypted data exchange scenario.
 
+## Architectural Decision: Docker-Based Virtualization
+
+The original project instruction mentions a network environment with at least two virtual machines, preferably for TTP and Server. In this project, Docker-based virtualization should be used instead of classic VMs because this approach was accepted by the instructor.
+
+The implementation should therefore treat Docker Compose as the target runtime environment for the demonstration:
+
+- `ttp-service` should run as a separate container representing the TTP node.
+- `server-service` should run as a separate container representing the Server node.
+- `client-backend` should run as the User-side backend/application gateway.
+- `client-frontend` should provide the GUI for the User scenario.
+- All services should communicate through a Docker Compose network using service names instead of localhost addresses inside containers.
+
+The report and presentation should explicitly state that Docker-based virtualization is an instructor-approved alternative to the VM-based setup described in the original instruction.
+
 ## Architectural Decision: No MySQL for the MVP
 
 MySQL should not be used in the current implementation plan. The project task focuses on authentication through a Trusted Third Party, RSA 4096, X.509 public key certificates, AES-256 session keys, encrypted User-Server data exchange, logs, and validation scenarios. It assumes only one User, so a relational database is not required for the MVP.
@@ -36,9 +50,10 @@ Tasks:
    - `server-service`: `8081`
    - `client-backend`: `8082`
    - `client-frontend`: Vite or production frontend port
-5. Replace localhost service URLs inside containers with Docker service names, for example `http://server-service:8081` and `http://ttp-service:8080`.
-6. Add profile-based configuration if both local and Docker execution are needed.
-7. Update `README.md` with the verified run commands.
+5. Configure a Docker Compose network that separates the runtime environment from the host machine while allowing the project services to communicate with each other.
+6. Replace localhost service URLs inside containers with Docker service names, for example `http://server-service:8081` and `http://ttp-service:8080`.
+7. Add profile-based configuration if both local and Docker execution are needed.
+8. Update `README.md` with verified local and Docker run commands.
 
 ## Phase 2: Define Shared DTO Contracts
 
@@ -244,6 +259,7 @@ Files to edit or create:
 - `README.md`
 - `docs/architecture.md`
 - `docs/test-plan.md`
+- `docs/docker-environment.md`
 - `Doxyfile`
 - Java source files requiring Doxygen/Javadoc-compatible documentation
 - test files across all backend modules
@@ -255,27 +271,29 @@ Tasks:
 3. Add integration tests for the complete positive flow.
 4. Add integration tests for rejected authentication and forged certificate validation.
 5. Add documentation for the architecture, endpoints, cryptographic assumptions, and run instructions.
-6. Add Doxygen configuration and document the main backend classes/functions.
-7. Prepare a short technical test plan covering authentication validation, sample attacks/tests, encryption/decryption, and network connections.
+6. Document the Docker-based virtualization decision and explain that it replaces the classic VM split with the instructor's approval.
+7. Add Doxygen configuration and document the main backend classes/functions.
+8. Prepare a short technical test plan covering authentication validation, sample attacks/tests, encryption/decryption, and network connections.
 
-## Phase 11: VM/Network Deployment Preparation
+## Phase 11: Docker Network Deployment Preparation
 
-Goal: align the implementation with the required environment using at least two virtual machines.
+Goal: align the implementation with the required network-environment requirement using the instructor-approved Docker-based virtualization approach.
 
 Files to edit or create:
 
 - `docker-compose.yml`
-- `docs/deployment-vm.md`
+- `docs/docker-environment.md`
 - `docs/network-environment.md`
 - service configuration files under `src/main/resources/application.yml`
 
 Tasks:
 
-1. Document the planned VM split, for example TTP on one VM and Server on another VM.
-2. Define hostnames/IP addresses and ports used by each service.
-3. Configure service base URLs for VM deployment.
-4. Verify network connectivity between User physical machine, Server VM, and TTP VM.
-5. Document the final presentation runbook.
+1. Document the container split: TTP as one independent container and Server as another independent container.
+2. Define Docker service names, exposed host ports, internal container ports, and network aliases.
+3. Configure service base URLs for Docker deployment using service names rather than localhost.
+4. Verify network connectivity between `client-backend`, `server-service`, and `ttp-service` inside the Docker Compose network.
+5. Document how to inspect logs from `ttp-service` and `server-service` containers.
+6. Document the final presentation runbook based on Docker Compose rather than classic VMs.
 
 ## Optional Cleanup After MVP Flow Works
 
@@ -303,5 +321,5 @@ Tasks:
 8. Extend frontend scenario UI.
 9. Add forged certificate/negative validation scenario.
 10. Add logs, tests, Doxygen documentation, and report-supporting documentation.
-11. Prepare VM deployment documentation and final demonstration steps.
+11. Prepare Docker network documentation and final Docker Compose demonstration steps.
 12. Optionally remove unused JPA/MySQL dependencies after the MVP flow works.
