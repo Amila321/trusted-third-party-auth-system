@@ -16,6 +16,19 @@ The codebase is organized as a Maven multi-module Java project with a separate R
 - `docker-compose.yml` declares services for `ttp-service`, `server-service`, `client-backend`, and `client-frontend`. MySQL is intentionally not part of the Docker Compose environment. The file currently points to build contexts, but Dockerfiles were not observed in the service directories, so the Docker Compose flow is not yet complete.
 - `.gitignore` excludes Java build outputs, Node dependencies/build artifacts, environment files, logs, OS files, and selected IDE metadata.
 
+## Virtualization Decision
+
+The original project instruction mentions a network environment with at least two virtual machines, preferably for TTP and Server. In this project, Docker-based virtualization is used instead of classic VMs because this approach was accepted by the instructor.
+
+The target runtime environment should therefore be based on Docker Compose:
+
+- `ttp-service` should run as an independent container representing the TTP node.
+- `server-service` should run as an independent container representing the Server node.
+- `client-backend` and `client-frontend` may run locally during development or as separate containers during the final demonstration.
+- Services should communicate through a Docker Compose network using service names such as `ttp-service` and `server-service`, not hardcoded `localhost` addresses inside containers.
+
+This setup is treated as the project network environment and should be described in the report as an instructor-approved containerized alternative to the VM-based environment mentioned in the instruction.
+
 ## Database Decision
 
 MySQL should not be used in the current project scope. The project requirements focus on the TTP authentication scenario, RSA 4096, X.509 certificates, AES-256 session keys, encrypted User-Server data exchange, logs, and validation scenarios. The task assumes only one User, so persistent relational storage is not required for the MVP.
@@ -44,6 +57,7 @@ The currently implemented functionality is limited to service health checks and 
 - Axios
 - ESLint
 - Docker Compose declared for application services only, without MySQL
+- Docker-based virtualization as the instructor-approved runtime environment for TTP and Server separation
 
 ## How to Run
 
@@ -173,4 +187,6 @@ The frontend should display the current status of `client-backend`, `server-serv
 
 ### Current Docker Compose Status
 
-The repository contains `docker-compose.yml`, but it currently references service build contexts without visible Dockerfiles in those service directories. MySQL has been intentionally removed from Docker Compose. Because of that, the safest current run path is the local Maven/npm workflow described above. Docker Compose can be completed later by adding Dockerfiles and runtime configuration for the application services only.
+The repository contains `docker-compose.yml`, but it currently references service build contexts without visible Dockerfiles in those service directories. MySQL has been intentionally removed from Docker Compose.
+
+Docker Compose should be completed later as the instructor-approved virtualization environment. The final container setup should run at least `ttp-service` and `server-service` as independent containers on the same Docker network. Until Dockerfiles and container-specific service URLs are added, the safest current run path is the local Maven/npm workflow described above.
