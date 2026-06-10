@@ -4,8 +4,12 @@ import {
   closeSession,
   completeAuthentication,
   explainApiError,
+  getServerIdentity,
   getSystemStatus,
+  registerServer,
   registerUser,
+  requestAndCompleteSession,
+  requestSession,
   sendEncryptedData,
 } from './api/clientApi.js'
 import AuthenticationPanel from './components/AuthenticationPanel.jsx'
@@ -13,7 +17,9 @@ import DataExchangePanel from './components/DataExchangePanel.jsx'
 import LogPanel from './components/LogPanel.jsx'
 import ProtocolTimeline from './components/ProtocolTimeline.jsx'
 import RegistrationPanel from './components/RegistrationPanel.jsx'
+import ServerRegistrationPanel from './components/ServerRegistrationPanel.jsx'
 import ServiceCard from './components/ServiceCard.jsx'
+import SessionRequestPanel from './components/SessionRequestPanel.jsx'
 import SessionStatusBadge from './components/SessionStatusBadge.jsx'
 
 const emptyStatus = {
@@ -25,6 +31,8 @@ const emptyStatus = {
 function App() {
   const [systemStatus, setSystemStatus] = useState(emptyStatus)
   const [identity, setIdentity] = useState(null)
+  const [serverIdentity, setServerIdentity] = useState(null)
+  const [decision, setDecision] = useState(null)
   const [session, setSession] = useState(null)
   const [exchange, setExchange] = useState(null)
   const [events, setEvents] = useState([])
@@ -38,6 +46,8 @@ function App() {
     ],
     [systemStatus],
   )
+
+  const servicesUp = services.every(([, service]) => service.status === 'UP')
 
   const addEvent = useCallback((kind, title, message, payload) => {
     setEvents((current) => [
@@ -67,6 +77,12 @@ function App() {
       const status = await getSystemStatus()
       setSystemStatus(status)
       addEvent('info', 'Status refreshed', 'Client backend checked all service health endpoints.', status)
+      try {
+        const server = await getServerIdentity()
+        setServerIdentity(server.registered ? server : null)
+      } catch {
+        setServerIdentity(null)
+      }
     } catch (error) {
       const payload = explainApiError(error)
       addEvent('error', 'Status request failed', 'The frontend could not reach client-backend status endpoint.', payload)
@@ -85,11 +101,65 @@ function App() {
       try {
         const result = await registerUser(identityName)
         setIdentity(result.response)
+        setDecision(null)
         setSession(null)
         setExchange(null)
         addEvent('success', 'TTP registration completed', 'TTP returned an identity id and signed X.509 certificate.', result)
       } catch (error) {
         addEvent('error', 'Registration failed', 'TTP registration did not complete.', explainApiError(error))
+      }
+    })
+  }
+
+  async function handleRegisterServer(identityName) {
+    await runStep('server-registration', async () => {
+      addEvent('info', 'Server registration started', 'server-service will generate RSA keys and register at TTP.', {
+        identity_name: identityName,
+      })
+      try {
+        const result = await registerServer(identityName)
+        setServerIdentity(result.response)
+        setDecision(null)
+        setSession(null)
+        setExchange(null)
+        addEvent('success', 'Server registration completed', 'server-service returned its identity id and certificate.', result)
+      } catch (error) {
+        addEvent('error', 'Server registration failed', 'server-service could not register at TTP.', explainApiError(error))
+      }
+    })
+  }
+
+  async function handleRequestSession() {
+    await runStep('session-request', async () => {
+      addEvent('info', 'Session request started', 'Client signs a challenge and asks Server to forward authentication to TTP.', {
+        user_id: identity?.identity_id,
+        server_id: serverIdentity?.identity_id,
+      })
+      try {
+        const result = await requestSession()
+        setDecision(result.response)
+        setSession(null)
+        setExchange(null)
+        addEvent('success', 'TTP decision received', 'TTP returned the session id and encrypted AES keys.', result)
+      } catch (error) {
+        addEvent('error', 'Session request failed', 'The session request through Server and TTP did not complete.', explainApiError(error))
+      }
+    })
+  }
+
+  async function handleRequestAndComplete() {
+    await runStep('session-request', async () => {
+      addEvent('info', 'Automatic session request started', 'Client will request a TTP session and immediately store the AES key.', {
+        user_id: identity?.identity_id,
+        server_id: serverIdentity?.identity_id,
+      })
+      try {
+        const result = await requestAndCompleteSession()
+        setSession(result.response)
+        setExchange(null)
+        addEvent('success', 'Session requested and completed', 'Client backend stored the AES-256 session key.', result)
+      } catch (error) {
+        addEvent('error', 'Automatic session request failed', 'The session could not be requested and completed.', explainApiError(error))
       }
     })
   }
@@ -173,13 +243,34 @@ function App() {
             ))}
           </div>
 
-          <ProtocolTimeline identity={identity} session={session} exchange={exchange} />
+          <ProtocolTimeline
+            identity={identity}
+            serverIdentity={serverIdentity}
+            decision={decision}
+            session={session}
+            exchange={exchange}
+          />
         </aside>
 
         <section className="scenario-grid">
           <RegistrationPanel identity={identity} busy={busyStep === 'registration'} onRegister={handleRegister} />
+          <ServerRegistrationPanel
+            serverIdentity={serverIdentity}
+            servicesUp={servicesUp}
+            busy={busyStep === 'server-registration'}
+            onRegister={handleRegisterServer}
+          />
+          <SessionRequestPanel
+            identity={identity}
+            serverIdentity={serverIdentity}
+            decision={decision}
+            busy={busyStep === 'session-request'}
+            onRequest={handleRequestSession}
+            onRequestAndComplete={handleRequestAndComplete}
+          />
           <AuthenticationPanel
             identity={identity}
+            decision={decision}
             session={session}
             busy={busyStep === 'authentication'}
             onComplete={handleComplete}

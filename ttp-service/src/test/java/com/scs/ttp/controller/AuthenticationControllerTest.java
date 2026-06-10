@@ -4,11 +4,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.scs.crypto.config.CryptoConstants;
 import com.scs.crypto.encoding.EncodingService;
+import com.scs.crypto.hash.HashService;
 import com.scs.crypto.rsa.RsaEncryptionService;
 import com.scs.crypto.rsa.RsaKeyService;
 import com.scs.dto.auth.RegistrationRequest;
 import com.scs.dto.auth.ServerAuthenticationRequest;
 import com.scs.ttp.service.InMemorySessionStore;
+import com.scs.ttp.service.TtpCertificateAuthority;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -44,6 +46,12 @@ class AuthenticationControllerTest {
 
     @Autowired
     private EncodingService encodingService;
+
+    @Autowired
+    private HashService hashService;
+
+    @Autowired
+    private TtpCertificateAuthority certificateAuthority;
 
     @Autowired
     private InMemorySessionStore sessionStore;
@@ -132,8 +140,13 @@ class AuthenticationControllerTest {
 
     private RegisteredTestIdentity register(String name, String path) throws Exception {
         KeyPair keyPair = rsaKeyService.generateKeyPair();
+        String identityId = hashService.hashIdentity(name.trim().toLowerCase(java.util.Locale.ROOT));
         RegistrationRequest request = RegistrationRequest.builder()
                 .identityName(name)
+                .encryptedIdentityId(encodingService.encodeBase64(rsaEncryptionService.encrypt(
+                        identityId.getBytes(StandardCharsets.UTF_8),
+                        certificateAuthority.getTtpKeyPair().getPublic()
+                )))
                 .publicKeyPem(rsaKeyService.encodePublicKeyPem(keyPair.getPublic()))
                 .build();
 

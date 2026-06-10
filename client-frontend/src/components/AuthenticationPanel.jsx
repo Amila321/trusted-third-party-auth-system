@@ -1,10 +1,16 @@
 import { useState } from 'react'
 import JsonBlock from './JsonBlock.jsx'
 
-function AuthenticationPanel({ identity, session, busy, onComplete }) {
-  const [sessionId, setSessionId] = useState('')
-  const [encryptedSessionKey, setEncryptedSessionKey] = useState('')
+function AuthenticationPanel({ identity, decision, session, busy, onComplete }) {
+  const [sessionId, setSessionId] = useState(decision?.session_id || '')
+  const [encryptedSessionKey, setEncryptedSessionKey] = useState(decision?.encrypted_session_key_for_user || '')
   const [issuedAt, setIssuedAt] = useState(new Date().toISOString())
+
+  function fillFromDecision() {
+    setSessionId(decision?.session_id || '')
+    setEncryptedSessionKey(decision?.encrypted_session_key_for_user || '')
+    setIssuedAt(decision?.decided_at || new Date().toISOString())
+  }
 
   function handleSubmit(event) {
     event.preventDefault()
@@ -22,11 +28,14 @@ function AuthenticationPanel({ identity, session, busy, onComplete }) {
       </div>
 
       <div className="explain-strip">
-        <strong>Visible handoff:</strong> after Server calls TTP, paste the TTP `session_id` and
-        `encrypted_session_key_for_user` here. Client backend decrypts it with the private RSA key it generated in Step 1.
+        <strong>Visible handoff:</strong> use the TTP decision from Step 3. Client backend decrypts
+        `encrypted_session_key_for_user` with the private RSA key it generated in Step 1.
       </div>
 
       <form className="stacked-form" onSubmit={handleSubmit}>
+        <button type="button" className="secondary-button" disabled={!decision?.authenticated} onClick={fillFromDecision}>
+          Fill from TTP decision
+        </button>
         <label>
           TTP session id
           <input

@@ -11,6 +11,7 @@ import com.scs.crypto.rsa.RsaEncryptionService;
 import com.scs.crypto.rsa.RsaKeyService;
 import com.scs.dto.auth.RegistrationRequest;
 import com.scs.dto.auth.RegistrationResponse;
+import com.scs.dto.auth.TtpPublicKeyResponse;
 import com.scs.dto.session.SessionKeyResponse;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -24,6 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import javax.crypto.SecretKey;
 import java.security.PublicKey;
+import java.security.KeyPair;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -62,6 +64,7 @@ class AuthenticationControllerTest {
 
     @Test
     void initiateGeneratesClientKeyPairAndRegistersUserWithTtp() throws Exception {
+        mockTtpPublicKey();
         when(ttpClient.registerUser(any(RegistrationRequest.class))).thenReturn(RegistrationResponse.builder()
                 .identityId("client-user-1")
                 .certificatePem("CERTIFICATE_PEM")
@@ -81,11 +84,13 @@ class AuthenticationControllerTest {
         ArgumentCaptor<RegistrationRequest> captor = ArgumentCaptor.forClass(RegistrationRequest.class);
         verify(ttpClient).registerUser(captor.capture());
         assertThat(captor.getValue().getIdentityName()).isEqualTo("alice");
+        assertThat(captor.getValue().getEncryptedIdentityId()).isNotBlank();
         assertThat(captor.getValue().getPublicKeyPem()).contains("BEGIN PUBLIC KEY");
     }
 
     @Test
     void completeDecryptsAndStoresSessionKeyForActiveIdentity() throws Exception {
+        mockTtpPublicKey();
         when(ttpClient.registerUser(any(RegistrationRequest.class))).thenReturn(RegistrationResponse.builder()
                 .identityId("client-user-2")
                 .certificatePem("CERTIFICATE_PEM")
@@ -125,6 +130,7 @@ class AuthenticationControllerTest {
 
     @Test
     void initiateReturnsServiceUnavailableWhenTtpRegistrationFails() throws Exception {
+        mockTtpPublicKey();
         when(ttpClient.registerUser(any(RegistrationRequest.class)))
                 .thenThrow(new TtpClientException("Failed to register user with TTP"));
 
@@ -164,5 +170,13 @@ class AuthenticationControllerTest {
                                 .build())))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error_code").value("CLIENT_AUTHENTICATION_FAILED"));
+    }
+
+    private void mockTtpPublicKey() throws Exception {
+        KeyPair keyPair = rsaKeyService.generateKeyPair();
+        when(ttpClient.getTtpPublicKey()).thenReturn(TtpPublicKeyResponse.builder()
+                .publicKeyPem(rsaKeyService.encodePublicKeyPem(keyPair.getPublic()))
+                .issuedAt("2026-06-10T12:00:00Z")
+                .build());
     }
 }

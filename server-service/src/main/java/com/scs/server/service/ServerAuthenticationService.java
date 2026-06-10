@@ -6,13 +6,12 @@ import com.scs.dto.auth.UserAuthenticationRequest;
 import com.scs.crypto.aes.AesKeyService;
 import com.scs.crypto.encoding.EncodingService;
 import com.scs.crypto.rsa.RsaEncryptionService;
-import com.scs.crypto.rsa.RsaKeyService;
 import com.scs.server.exception.ServerConfigurationException;
 import com.scs.server.exception.SessionDecisionException;
+import com.scs.server.model.ServerIdentityContext;
 import com.scs.server.model.ServerSessionContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -26,24 +25,19 @@ public class ServerAuthenticationService {
 
     private final TtpClient ttpClient;
     private final InMemoryServerSessionStore sessionStore;
-    private final RsaKeyService rsaKeyService;
+    private final InMemoryServerIdentityStore identityStore;
     private final RsaEncryptionService rsaEncryptionService;
     private final AesKeyService aesKeyService;
     private final EncodingService encodingService;
 
-    @Value("${server.identity.certificate-pem:}")
-    private String serverCertificatePem;
-
-    @Value("${server.identity.private-key-pem:}")
-    private String serverPrivateKeyPem;
-
     public TtpAuthenticationDecision handleUserServiceRequest(UserAuthenticationRequest request) {
-        validateServerMaterial();
+        ServerIdentityContext serverIdentity = identityStore.current()
+                .orElseThrow(() -> new ServerConfigurationException("Server identity is not registered at TTP yet."));
         ServerAuthenticationRequest ttpRequest = ServerAuthenticationRequest.builder()
                 .userId(request.getUserId())
-                .serverId(request.getServerId())
+                .serverId(serverIdentity.getIdentityId())
                 .userCertificatePem(request.getUserCertificatePem())
-                .serverCertificatePem(serverCertificatePem)
+                .serverCertificatePem(serverIdentity.getCertificatePem())
                 .challenge(request.getChallenge())
                 .signedChallenge(request.getSignedChallenge())
                 .build();
@@ -55,12 +49,16 @@ public class ServerAuthenticationService {
                 decision.isAuthenticated());
 
         if (decision.isAuthenticated()) {
-            storeAuthenticatedSession(request, decision);
+            storeAuthenticatedSession(request, decision, serverIdentity);
         }
         return decision;
     }
 
-    private void storeAuthenticatedSession(UserAuthenticationRequest request, TtpAuthenticationDecision decision) {
+    private void storeAuthenticatedSession(
+            UserAuthenticationRequest request,
+            TtpAuthenticationDecision decision,
+            ServerIdentityContext serverIdentity
+    ) {
         if (!StringUtils.hasText(decision.getSessionId())) {
             throw new SessionDecisionException("Authenticated TTP decision did not include a session ID");
         }
@@ -71,30 +69,20 @@ public class ServerAuthenticationService {
         sessionStore.save(ServerSessionContext.builder()
                 .sessionId(decision.getSessionId())
                 .userId(request.getUserId())
-                .serverId(request.getServerId())
+                .serverId(serverIdentity.getIdentityId())
                 .encryptedSessionKeyForServer(decision.getEncryptedSessionKeyForServer())
-                .sessionKey(decryptSessionKeyForServer(decision))
+                .sessionKey(decryptSessionKeyForServer(decision, serverIdentity))
                 .createdAt(Instant.now())
                 .build());
     }
 
-    private SecretKey decryptSessionKeyForServer(TtpAuthenticationDecision decision) {
-        if (!StringUtils.hasText(serverPrivateKeyPem)) {
-            log.info("server.identity.private-key-pem is not configured; storing encrypted session key only");
-            return null;
-        }
+    private SecretKey decryptSessionKeyForServer(TtpAuthenticationDecision decision, ServerIdentityContext serverIdentity) {
         try {
             byte[] encryptedKey = encodingService.decodeBase64(decision.getEncryptedSessionKeyForServer());
-            byte[] keyBytes = rsaEncryptionService.decrypt(encryptedKey, rsaKeyService.decodePrivateKeyPem(serverPrivateKeyPem));
+            byte[] keyBytes = rsaEncryptionService.decrypt(encryptedKey, serverIdentity.getKeyPair().getPrivate());
             return aesKeyService.decodeKey(encodingService.encodeBase64(keyBytes));
         } catch (Exception e) {
             throw new SessionDecisionException("Failed to decrypt server session key from TTP decision");
-        }
-    }
-
-    private void validateServerMaterial() {
-        if (!StringUtils.hasText(serverCertificatePem)) {
-            throw new ServerConfigurationException("server.identity.certificate-pem must be configured before forwarding authentication requests");
         }
     }
 }

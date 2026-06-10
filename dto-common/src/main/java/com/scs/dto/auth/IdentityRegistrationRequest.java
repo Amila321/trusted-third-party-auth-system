@@ -11,17 +11,9 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class RegistrationRequest {
+public class IdentityRegistrationRequest {
 
     @JsonProperty("identity_name")
     @NotBlank
     private String identityName;
-
-    @JsonProperty("encrypted_identity_id")
-    @NotBlank
-    private String encryptedIdentityId;
-
-    @JsonProperty("public_key_pem")
-    @NotBlank
-    private String publicKeyPem;
 }

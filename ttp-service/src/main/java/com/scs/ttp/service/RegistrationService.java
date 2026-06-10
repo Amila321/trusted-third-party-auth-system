@@ -1,6 +1,9 @@
 package com.scs.ttp.service;
 
 import com.scs.crypto.certificate.CertificateService;
+import com.scs.crypto.encoding.EncodingService;
+import com.scs.crypto.hash.HashService;
+import com.scs.crypto.rsa.RsaEncryptionService;
 import com.scs.crypto.rsa.RsaKeyService;
 import com.scs.dto.auth.RegistrationRequest;
 import com.scs.dto.auth.RegistrationResponse;
@@ -22,6 +25,9 @@ import java.security.cert.X509Certificate;
 public class RegistrationService {
 
     private final RsaKeyService rsaKeyService;
+    private final RsaEncryptionService rsaEncryptionService;
+    private final EncodingService encodingService;
+    private final HashService hashService;
     private final CertificateService certificateService;
     private final TtpCertificateAuthority certificateAuthority;
     private final InMemoryIdentityStore identityStore;
@@ -45,11 +51,16 @@ public class RegistrationService {
             if (identityStore.identityExists(request.getIdentityName())) {
                 throw new DuplicateIdentityException(request.getIdentityName());
             }
+            String identityId = decryptAndValidateIdentityId(request);
+            if (identityStore.identityIdExists(identityId)) {
+                throw new DuplicateIdentityException(identityId);
+            }
             PublicKey publicKey = rsaKeyService.decodePublicKeyPem(request.getPublicKeyPem());
             String subjectDN = subjectDn(request.getIdentityName(), type);
             X509Certificate certificate = certificateAuthority.signCertificate(publicKey, subjectDN);
             RegisteredIdentity identity = identityStore.registerIdentity(
                     request.getIdentityName(),
+                    identityId,
                     publicKey,
                     type,
                     certificate
@@ -59,6 +70,28 @@ public class RegistrationService {
             throw e;
         } catch (Exception e) {
             throw new TtpOperationException("Failed to register identity", e);
+        }
+    }
+
+    private String decryptAndValidateIdentityId(RegistrationRequest request) {
+        try {
+            byte[] encryptedIdentityId = encodingService.decodeBase64(request.getEncryptedIdentityId());
+            String identityId = new String(
+                    rsaEncryptionService.decrypt(encryptedIdentityId, certificateAuthority.getTtpKeyPair().getPrivate()),
+                    java.nio.charset.StandardCharsets.UTF_8
+            );
+            if (identityId.isBlank()) {
+                throw new TtpOperationException("Decrypted identity ID is blank", null);
+            }
+            String expected = hashService.hashIdentity(identityStore.normalizeName(request.getIdentityName()));
+            if (!expected.equals(identityId)) {
+                throw new TtpOperationException("Encrypted identity ID does not match identity name hash", null);
+            }
+            return identityId;
+        } catch (TtpOperationException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new TtpOperationException("Failed to decrypt encrypted identity ID", e);
         }
     }
 

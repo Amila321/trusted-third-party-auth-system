@@ -9,6 +9,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -32,6 +33,7 @@ class ServiceRequestControllerConfigurationTest {
     private TtpClient ttpClient;
 
     @Test
+    @DirtiesContext(methodMode = DirtiesContext.MethodMode.BEFORE_METHOD)
     void requestServiceFailsFastWhenServerCertificateIsNotConfigured() throws Exception {
         UserAuthenticationRequest request = UserAuthenticationRequest.builder()
                 .userId("user-1")

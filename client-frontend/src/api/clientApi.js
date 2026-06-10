@@ -16,6 +16,27 @@ export async function registerUser(identityName) {
   return { request, response: response.data }
 }
 
+export async function registerServer(identityName) {
+  const request = { identity_name: identityName }
+  const response = await api.post('/api/client/server/register', request)
+  return { request, response: response.data }
+}
+
+export async function getServerIdentity() {
+  const response = await api.get('/api/client/server/identity')
+  return response.data
+}
+
+export async function requestSession() {
+  const response = await api.post('/api/client/auth/request-session')
+  return { request: {}, response: response.data }
+}
+
+export async function requestAndCompleteSession() {
+  const response = await api.post('/api/client/auth/request-and-complete-session')
+  return { request: {}, response: response.data }
+}
+
 export async function completeAuthentication({ sessionId, encryptedSessionKey, issuedAt }) {
   const request = {
     session_id: sessionId,

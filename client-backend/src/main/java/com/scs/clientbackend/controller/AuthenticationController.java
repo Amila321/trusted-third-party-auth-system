@@ -4,6 +4,7 @@ import com.scs.clientbackend.dto.ClientAuthenticationInitiateRequest;
 import com.scs.clientbackend.dto.ClientAuthenticationStateResponse;
 import com.scs.clientbackend.dto.ClientSessionStatusResponse;
 import com.scs.clientbackend.service.ClientAuthenticationService;
+import com.scs.dto.auth.TtpAuthenticationDecision;
 import com.scs.dto.session.SessionKeyResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,5 +28,15 @@ public class AuthenticationController {
     @PostMapping("/complete")
     public ClientSessionStatusResponse complete(@Valid @RequestBody SessionKeyResponse response) {
         return clientAuthenticationService.complete(response);
+    }
+
+    @PostMapping("/request-session")
+    public TtpAuthenticationDecision requestSession() {
+        return clientAuthenticationService.requestSession();
+    }
+
+    @PostMapping("/request-and-complete-session")
+    public ClientSessionStatusResponse requestAndCompleteSession() {
+        return clientAuthenticationService.requestAndCompleteSession();
     }
 }

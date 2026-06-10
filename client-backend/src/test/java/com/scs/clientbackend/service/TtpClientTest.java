@@ -33,6 +33,7 @@ class TtpClientTest {
                 .andExpect(content().json("""
                         {
                           "identity_name": "alice",
+                          "encrypted_identity_id": "ENCRYPTED_ID",
                           "public_key_pem": "PUBLIC_KEY_PEM"
                         }
                         """))
@@ -46,6 +47,7 @@ class TtpClientTest {
 
         RegistrationResponse response = client.registerUser(RegistrationRequest.builder()
                 .identityName("alice")
+                .encryptedIdentityId("ENCRYPTED_ID")
                 .publicKeyPem("PUBLIC_KEY_PEM")
                 .build());
 
@@ -66,6 +68,7 @@ class TtpClientTest {
 
         assertThatThrownBy(() -> client.registerUser(RegistrationRequest.builder()
                         .identityName("alice")
+                        .encryptedIdentityId("ENCRYPTED_ID")
                         .publicKeyPem("PUBLIC_KEY_PEM")
                         .build()))
                 .isInstanceOf(TtpClientException.class)

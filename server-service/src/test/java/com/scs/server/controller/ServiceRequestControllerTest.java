@@ -1,11 +1,17 @@
 package com.scs.server.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.scs.crypto.aes.AesKeyService;
+import com.scs.crypto.encoding.EncodingService;
+import com.scs.crypto.rsa.RsaEncryptionService;
+import com.scs.crypto.rsa.RsaKeyService;
 import com.scs.dto.auth.ServerAuthenticationRequest;
 import com.scs.dto.auth.TtpAuthenticationDecision;
 import com.scs.dto.auth.UserAuthenticationRequest;
 import com.scs.server.exception.TtpClientException;
 import com.scs.server.model.ServerSessionContext;
+import com.scs.server.model.ServerIdentityContext;
+import com.scs.server.service.InMemoryServerIdentityStore;
 import com.scs.server.service.InMemoryServerSessionStore;
 import com.scs.server.service.TtpClient;
 import org.junit.jupiter.api.Test;
@@ -18,6 +24,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Optional;
+import java.security.KeyPair;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -41,14 +49,30 @@ class ServiceRequestControllerTest {
     @Autowired
     private InMemoryServerSessionStore sessionStore;
 
+    @Autowired
+    private InMemoryServerIdentityStore identityStore;
+
+    @Autowired
+    private RsaKeyService rsaKeyService;
+
+    @Autowired
+    private RsaEncryptionService rsaEncryptionService;
+
+    @Autowired
+    private AesKeyService aesKeyService;
+
+    @Autowired
+    private EncodingService encodingService;
+
     @MockBean
     private TtpClient ttpClient;
 
     @Test
     void requestServiceForwardsUserAuthenticationToTtpAndStoresAcceptedSession() throws Exception {
+        KeyPair serverKeyPair = seedServerIdentity("server-1");
         UserAuthenticationRequest request = validRequest("user-1", "server-1");
         when(ttpClient.authenticateUserForServer(any(ServerAuthenticationRequest.class)))
-                .thenReturn(acceptedDecision("session-1"));
+                .thenReturn(acceptedDecision("session-1", serverKeyPair));
 
         mockMvc.perform(post("/api/server/request")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -56,7 +80,7 @@ class ServiceRequestControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.authenticated").value(true))
                 .andExpect(jsonPath("$.session_id").value("session-1"))
-                .andExpect(jsonPath("$.encrypted_session_key_for_server").value("server-key"));
+                .andExpect(jsonPath("$.encrypted_session_key_for_server").isNotEmpty());
 
         ArgumentCaptor<ServerAuthenticationRequest> captor = ArgumentCaptor.forClass(ServerAuthenticationRequest.class);
         verify(ttpClient).authenticateUserForServer(captor.capture());
@@ -71,11 +95,13 @@ class ServiceRequestControllerTest {
 
         Optional<ServerSessionContext> storedSession = sessionStore.findBySessionId("session-1");
         assertThat(storedSession).isPresent();
-        assertThat(storedSession.get().getEncryptedSessionKeyForServer()).isEqualTo("server-key");
+        assertThat(storedSession.get().getEncryptedSessionKeyForServer()).isNotBlank();
+        assertThat(storedSession.get().getSessionKey()).isNotNull();
     }
 
     @Test
     void requestServiceReturnsRejectedTtpDecisionWithoutStoringSession() throws Exception {
+        seedServerIdentity("server-1");
         UserAuthenticationRequest request = validRequest("user-2", "server-1");
         when(ttpClient.authenticateUserForServer(any(ServerAuthenticationRequest.class)))
                 .thenReturn(rejectedDecision("invalid signature"));
@@ -92,6 +118,7 @@ class ServiceRequestControllerTest {
 
     @Test
     void requestServiceReturnsServiceUnavailableWhenTtpCannotBeReached() throws Exception {
+        seedServerIdentity("server-1");
         when(ttpClient.authenticateUserForServer(any(ServerAuthenticationRequest.class)))
                 .thenThrow(new TtpClientException("Failed to call TTP authentication endpoint"));
 
@@ -117,7 +144,8 @@ class ServiceRequestControllerTest {
 
     @Test
     void authenticatedDecisionWithoutSessionIdReturnsBadGateway() throws Exception {
-        TtpAuthenticationDecision decision = acceptedDecision("");
+        KeyPair serverKeyPair = seedServerIdentity("server-1");
+        TtpAuthenticationDecision decision = acceptedDecision("", serverKeyPair);
         when(ttpClient.authenticateUserForServer(any(ServerAuthenticationRequest.class)))
                 .thenReturn(decision);
 
@@ -138,14 +166,29 @@ class ServiceRequestControllerTest {
                 .build();
     }
 
-    private TtpAuthenticationDecision acceptedDecision(String sessionId) {
+    private TtpAuthenticationDecision acceptedDecision(String sessionId, KeyPair serverKeyPair) throws Exception {
         return TtpAuthenticationDecision.builder()
                 .authenticated(true)
                 .sessionId(sessionId)
                 .encryptedSessionKeyForUser("user-key")
-                .encryptedSessionKeyForServer("server-key")
+                .encryptedSessionKeyForServer(encodingService.encodeBase64(
+                        rsaEncryptionService.encrypt(aesKeyService.generateSessionKey().getEncoded(), serverKeyPair.getPublic())
+                ))
                 .decidedAt("2026-06-10T12:00:00Z")
                 .build();
+    }
+
+    private KeyPair seedServerIdentity(String serverId) throws Exception {
+        KeyPair keyPair = rsaKeyService.generateKeyPair();
+        identityStore.save(ServerIdentityContext.builder()
+                .identityId(serverId)
+                .identityName("server")
+                .keyPair(keyPair)
+                .publicKeyPem(rsaKeyService.encodePublicKeyPem(keyPair.getPublic()))
+                .certificatePem("SERVER_CERTIFICATE_PEM")
+                .registeredAt(Instant.now().toString())
+                .build());
+        return keyPair;
     }
 
     private TtpAuthenticationDecision rejectedDecision(String reason) {

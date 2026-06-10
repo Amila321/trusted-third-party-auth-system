@@ -8,7 +8,9 @@ import com.scs.crypto.rsa.RsaKeyService;
 import com.scs.dto.auth.ServerAuthenticationRequest;
 import com.scs.dto.auth.TtpAuthenticationDecision;
 import com.scs.dto.auth.UserAuthenticationRequest;
+import com.scs.server.model.ServerIdentityContext;
 import com.scs.server.model.ServerSessionContext;
+import com.scs.server.service.InMemoryServerIdentityStore;
 import com.scs.server.service.InMemoryServerSessionStore;
 import com.scs.server.service.TtpClient;
 import org.junit.jupiter.api.Test;
@@ -17,12 +19,11 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import javax.crypto.SecretKey;
 import java.security.KeyPair;
+import java.time.Instant;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -57,17 +58,22 @@ class ServiceRequestControllerPrivateKeyTest {
     @Autowired
     private InMemoryServerSessionStore sessionStore;
 
+    @Autowired
+    private InMemoryServerIdentityStore identityStore;
+
     @MockBean
     private TtpClient ttpClient;
 
-    @DynamicPropertySource
-    static void serverIdentityProperties(DynamicPropertyRegistry registry) {
-        registry.add("server.identity.certificate-pem", () -> "SERVER_CERTIFICATE_PEM");
-        registry.add("server.identity.private-key-pem", () -> SERVER_PRIVATE_KEY_PEM);
-    }
-
     @Test
     void acceptedDecisionDecryptsServerSessionKeyWhenPrivateKeyIsConfigured() throws Exception {
+        identityStore.save(ServerIdentityContext.builder()
+                .identityId("server-1")
+                .identityName("server")
+                .keyPair(SERVER_KEY_PAIR)
+                .publicKeyPem(RSA_KEY_SERVICE.encodePublicKeyPem(SERVER_KEY_PAIR.getPublic()))
+                .certificatePem("SERVER_CERTIFICATE_PEM")
+                .registeredAt(Instant.now().toString())
+                .build());
         SecretKey sessionKey = aesKeyService.generateSessionKey();
         String encryptedForServer = encodingService.encodeBase64(
                 rsaEncryptionService.encrypt(sessionKey.getEncoded(), SERVER_KEY_PAIR.getPublic())

@@ -3,6 +3,9 @@ package com.scs.ttp.controller;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.scs.crypto.certificate.CertificateService;
+import com.scs.crypto.encoding.EncodingService;
+import com.scs.crypto.hash.HashService;
+import com.scs.crypto.rsa.RsaEncryptionService;
 import com.scs.crypto.rsa.RsaKeyService;
 import com.scs.dto.auth.RegistrationRequest;
 import com.scs.ttp.service.TtpCertificateAuthority;
@@ -13,6 +16,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.cert.X509Certificate;
 import java.util.UUID;
@@ -35,6 +39,15 @@ class RegistrationControllerTest {
 
     @Autowired
     private RsaKeyService rsaKeyService;
+
+    @Autowired
+    private RsaEncryptionService rsaEncryptionService;
+
+    @Autowired
+    private EncodingService encodingService;
+
+    @Autowired
+    private HashService hashService;
 
     @Autowired
     private CertificateService certificateService;
@@ -132,8 +145,13 @@ class RegistrationControllerTest {
 
     private RegistrationRequest registrationRequest(String identityName) throws Exception {
         KeyPair keyPair = rsaKeyService.generateKeyPair();
+        String identityId = hashService.hashIdentity(identityName.trim().toLowerCase(java.util.Locale.ROOT));
         return RegistrationRequest.builder()
                 .identityName(identityName)
+                .encryptedIdentityId(encodingService.encodeBase64(rsaEncryptionService.encrypt(
+                        identityId.getBytes(StandardCharsets.UTF_8),
+                        certificateAuthority.getTtpKeyPair().getPublic()
+                )))
                 .publicKeyPem(rsaKeyService.encodePublicKeyPem(keyPair.getPublic()))
                 .build();
     }

@@ -24,11 +24,12 @@ class DtoSerializationTest {
     void registrationRequest_roundTrip() throws Exception {
         RegistrationRequest original = RegistrationRequest.builder()
                 .identityName("alice")
+                .encryptedIdentityId("encryptedIdentityId==")
                 .publicKeyPem("-----BEGIN PUBLIC KEY-----\nMIIB...\n-----END PUBLIC KEY-----")
                 .build();
 
         String json = objectMapper.writeValueAsString(original);
-        assertThat(json).contains("\"identity_name\"").contains("\"public_key_pem\"");
+        assertThat(json).contains("\"identity_name\"").contains("\"encrypted_identity_id\"").contains("\"public_key_pem\"");
 
         RegistrationRequest deserialized = objectMapper.readValue(json, RegistrationRequest.class);
         assertThat(deserialized).isEqualTo(original);
