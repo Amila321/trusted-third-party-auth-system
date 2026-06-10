@@ -1,0 +1,8 @@
+package com.scs.dto.attack;
+
+public enum AttackScenarioType {
+    FORGED_USER_CERTIFICATE,
+    TAMPERED_USER_CERTIFICATE,
+    INVALID_CHALLENGE_SIGNATURE,
+    IDENTITY_CERTIFICATE_MISMATCH
+}

@@ -327,6 +327,12 @@ pre {
   background: rgba(31, 122, 92, 0.12);
 }
 
+.panel-state.blocked {
+  color: var(--danger);
+  border-color: rgba(165, 58, 45, 0.35);
+  background: rgba(165, 58, 45, 0.1);
+}
+
 .control-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -366,6 +372,53 @@ pre {
   color: #33423a;
   background: rgba(17, 92, 73, 0.08);
   line-height: 1.5;
+}
+
+.attack-panel {
+  border-color: rgba(165, 58, 45, 0.28);
+}
+
+.attack-buttons {
+  display: grid;
+  gap: 10px;
+}
+
+.attack-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--paper);
+}
+
+.attack-option p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.attack-result {
+  display: grid;
+  gap: 4px;
+  margin-top: 14px;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.attack-result.blocked {
+  color: var(--forest-dark);
+  background: rgba(31, 122, 92, 0.12);
+  border: 1px solid rgba(31, 122, 92, 0.3);
+}
+
+.attack-result.danger {
+  color: var(--danger);
+  background: rgba(165, 58, 45, 0.1);
+  border: 1px solid rgba(165, 58, 45, 0.3);
 }
 
 .json-block {
@@ -489,6 +542,10 @@ pre {
   }
 
   .control-row {
+    grid-template-columns: 1fr;
+  }
+
+  .attack-option {
     grid-template-columns: 1fr;
   }
 

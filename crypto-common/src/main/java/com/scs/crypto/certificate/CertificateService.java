@@ -64,6 +64,35 @@ public class CertificateService {
                 .getCertificate(holder);
     }
 
+    public X509Certificate generateSelfSignedCertificate(
+            KeyPair subjectKeyPair,
+            String subjectDN,
+            int validityDays
+    ) throws OperatorCreationException, CertificateException {
+        X500Name subject = new X500Name(subjectDN);
+        BigInteger serial = BigInteger.valueOf(System.currentTimeMillis());
+        Date notBefore = Date.from(Instant.now());
+        Date notAfter = Date.from(Instant.now().plus(validityDays, ChronoUnit.DAYS));
+
+        JcaX509v3CertificateBuilder certBuilder = new JcaX509v3CertificateBuilder(
+                subject,
+                serial,
+                notBefore,
+                notAfter,
+                subject,
+                subjectKeyPair.getPublic()
+        );
+
+        ContentSigner signer = new JcaContentSignerBuilder(CryptoConstants.SIGNATURE_ALGORITHM)
+                .setProvider(CryptoConstants.BOUNCY_CASTLE_PROVIDER)
+                .build(subjectKeyPair.getPrivate());
+
+        X509CertificateHolder holder = certBuilder.build(signer);
+        return new JcaX509CertificateConverter()
+                .setProvider(CryptoConstants.BOUNCY_CASTLE_PROVIDER)
+                .getCertificate(holder);
+    }
+
     /**
      * Encodes an {@link X509Certificate} to PEM ({@code -----BEGIN CERTIFICATE-----}).
      */

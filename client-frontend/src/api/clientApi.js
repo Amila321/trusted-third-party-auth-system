@@ -62,6 +62,12 @@ export async function closeSession(sessionId) {
   return { request, response: response.data }
 }
 
+export async function simulateAttack(scenario) {
+  const request = { scenario }
+  const response = await api.post('/api/client/attack/simulate', request)
+  return { request, response: response.data }
+}
+
 export function explainApiError(error) {
   if (error.response?.data) {
     if (error.response.status === 404 && error.response.data.path?.startsWith('/api/client/')) {

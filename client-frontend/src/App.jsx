@@ -11,7 +11,9 @@ import {
   requestAndCompleteSession,
   requestSession,
   sendEncryptedData,
+  simulateAttack,
 } from './api/clientApi.js'
+import AttackSimulationPanel from './components/AttackSimulationPanel.jsx'
 import AuthenticationPanel from './components/AuthenticationPanel.jsx'
 import DataExchangePanel from './components/DataExchangePanel.jsx'
 import LogPanel from './components/LogPanel.jsx'
@@ -35,6 +37,7 @@ function App() {
   const [decision, setDecision] = useState(null)
   const [session, setSession] = useState(null)
   const [exchange, setExchange] = useState(null)
+  const [attackResult, setAttackResult] = useState(null)
   const [events, setEvents] = useState([])
   const [busyStep, setBusyStep] = useState('')
 
@@ -104,6 +107,7 @@ function App() {
         setDecision(null)
         setSession(null)
         setExchange(null)
+        setAttackResult(null)
         addEvent('success', 'TTP registration completed', 'TTP returned an identity id and signed X.509 certificate.', result)
       } catch (error) {
         addEvent('error', 'Registration failed', 'TTP registration did not complete.', explainApiError(error))
@@ -122,6 +126,7 @@ function App() {
         setDecision(null)
         setSession(null)
         setExchange(null)
+        setAttackResult(null)
         addEvent('success', 'Server registration completed', 'server-service returned its identity id and certificate.', result)
       } catch (error) {
         addEvent('error', 'Server registration failed', 'server-service could not register at TTP.', explainApiError(error))
@@ -187,6 +192,25 @@ function App() {
         addEvent('success', 'Encrypted exchange completed', 'Server response was decrypted by client-backend.', result)
       } catch (error) {
         addEvent('error', 'Encrypted exchange failed', 'Client-server AES exchange did not complete.', explainApiError(error))
+      }
+    })
+  }
+
+  async function handleSimulateAttack(scenario) {
+    await runStep('attack', async () => {
+      addEvent('info', 'Attack simulation started', 'A malicious authentication request will be sent through Server to TTP.', {
+        scenario,
+      })
+      try {
+        const result = await simulateAttack(scenario)
+        setAttackResult(result.response)
+        if (result.response.rejected) {
+          addEvent('success', 'Attack blocked by TTP', 'TTP rejected the malicious authentication request.', result)
+        } else {
+          addEvent('error', 'Attack was not rejected', 'The attack returned authenticated=true and needs investigation.', result)
+        }
+      } catch (error) {
+        addEvent('error', 'Attack simulation failed', 'The attack request did not complete.', explainApiError(error))
       }
     })
   }
@@ -274,6 +298,13 @@ function App() {
             session={session}
             busy={busyStep === 'authentication'}
             onComplete={handleComplete}
+          />
+          <AttackSimulationPanel
+            identity={identity}
+            serverIdentity={serverIdentity}
+            result={attackResult}
+            busy={busyStep === 'attack'}
+            onSimulate={handleSimulateAttack}
           />
           <DataExchangePanel
             session={session}

@@ -81,6 +81,34 @@ Verify:
 - Check logs: `docker-compose logs -f ttp-service`
 - Stop: `docker-compose down`
 
+## Attack Simulation Demo
+
+After the normal positive flow works in the frontend, use the `Attack Simulation` panel to demonstrate negative validation:
+
+1. Refresh status and confirm TTP, Server, and Client Backend are `UP`.
+2. Register User at TTP.
+3. Register Server at TTP.
+4. Run `Request and complete session` to prove the valid flow.
+5. Send an encrypted message to prove AES data exchange works.
+6. Run `Forged User Certificate Attack`.
+7. Confirm the frontend shows `authenticated: false` and a rejection reason such as `Certificate was not signed by the TTP`.
+8. Run `Invalid Challenge Signature Attack`.
+9. Confirm the frontend shows `authenticated: false` and `Invalid signed challenge`.
+
+Attack requests still use the real pipeline:
+
+```text
+client-frontend -> client-backend -> server-service -> ttp-service
+```
+
+The attack simulation does not expose private keys, does not create a valid AES session when TTP rejects the request, and does not overwrite the current valid User or Server identity.
+
+Relevant endpoint:
+
+```http
+POST /api/client/attack/simulate
+```
+
 ## Architecture Reference
 
 See `Agents.md` for:

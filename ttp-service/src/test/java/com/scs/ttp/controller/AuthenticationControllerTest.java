@@ -3,6 +3,7 @@ package com.scs.ttp.controller;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.scs.crypto.config.CryptoConstants;
+import com.scs.crypto.certificate.CertificateService;
 import com.scs.crypto.encoding.EncodingService;
 import com.scs.crypto.hash.HashService;
 import com.scs.crypto.rsa.RsaEncryptionService;
@@ -43,6 +44,9 @@ class AuthenticationControllerTest {
 
     @Autowired
     private RsaEncryptionService rsaEncryptionService;
+
+    @Autowired
+    private CertificateService certificateService;
 
     @Autowired
     private EncodingService encodingService;
@@ -101,6 +105,35 @@ class AuthenticationControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.authenticated").value(false))
                 .andExpect(jsonPath("$.rejection_reason").value("Invalid signed challenge"));
+    }
+
+    @Test
+    void authenticateUserForServerRejectsSelfSignedUserCertificate() throws Exception {
+        RegisteredTestIdentity user = register("phase9-forged-user-" + UUID.randomUUID(), "/api/ttp/register/user");
+        RegisteredTestIdentity server = register("phase9-forged-server-" + UUID.randomUUID(), "/api/ttp/register/server");
+        KeyPair attackerKeyPair = rsaKeyService.generateKeyPair();
+        String challenge = "challenge";
+        String forgedCertificate = certificateService.encodeCertificatePem(certificateService.generateSelfSignedCertificate(
+                attackerKeyPair,
+                "CN=" + user.identityId() + ",OU=USER,O=Attacker,C=PL",
+                CryptoConstants.CERTIFICATE_VALIDITY_DAYS
+        ));
+
+        ServerAuthenticationRequest request = ServerAuthenticationRequest.builder()
+                .userId(user.identityId())
+                .serverId(server.identityId())
+                .userCertificatePem(forgedCertificate)
+                .serverCertificatePem(server.certificatePem())
+                .challenge(challenge)
+                .signedChallenge(sign(challenge, attackerKeyPair))
+                .build();
+
+        mockMvc.perform(post("/api/ttp/auth/user")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.authenticated").value(false))
+                .andExpect(jsonPath("$.rejection_reason").value("Certificate was not signed by the TTP"));
     }
 
     @Test
