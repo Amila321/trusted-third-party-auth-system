@@ -1,6 +1,21 @@
 server:
   port: 8081
+  identity:
+    certificate-pem: ""
+    private-key-pem: ""
 
 spring:
   application:
     name: server-service
+
+logging:
+  level:
+    com.scs: INFO
+    org.springframework.web: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+services:
+  ttp-service:
+    base-url: http://localhost:8080
+    auth-user-path: /api/ttp/auth/user

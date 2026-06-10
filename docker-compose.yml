@@ -1,9 +1,72 @@
+
 services:
   ttp-service:
-    build: ./ttp-service
+    build:
+      context: ./ttp-service
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    networks:
+      - scs-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   server-service:
-    build: ./server-service
+    build:
+      context: ./server-service
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    networks:
+      - scs-network
+    depends_on:
+      ttp-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   client-backend:
-    build: ./client-backend
+    build:
+      context: ./client-backend
+      dockerfile: Dockerfile
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    networks:
+      - scs-network
+    depends_on:
+      ttp-service:
+        condition: service_healthy
+      server-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   client-frontend:
-    build: ./client-frontend
+    build:
+      context: ./client-frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    networks:
+      - scs-network
+    depends_on:
+      - client-backend
+
+networks:
+  scs-network:
+    driver: bridge
