@@ -15,11 +15,6 @@ function SessionRequestPanel({ identity, serverIdentity, decision, busy, onReque
         </span>
       </div>
 
-      <div className="explain-strip">
-        The client backend signs a random challenge with the User private key, sends it to server-service,
-        and server-service forwards User and Server certificates to TTP.
-      </div>
-
       <div className="button-row">
         <button type="button" disabled={busy || !canRequest} onClick={onRequest}>
           Request service/session

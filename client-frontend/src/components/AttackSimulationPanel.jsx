@@ -33,11 +33,6 @@ function AttackSimulationPanel({ identity, serverIdentity, result, busy, onSimul
         </span>
       </div>
 
-      <div className="explain-strip">
-        These tests still go through the real pipeline: client-backend {'->'} server-service {'->'} TTP.
-        A successful defense returns <strong>authenticated=false</strong> and no valid session is created.
-      </div>
-
       <div className="attack-buttons">
         {attacks.map((attack) => (
           <article className="attack-option" key={attack.scenario}>

@@ -27,11 +27,6 @@ function AuthenticationPanel({ identity, decision, session, busy, onComplete }) 
         <span className={session ? 'panel-state complete' : 'panel-state'}>{session ? 'complete' : 'waiting'}</span>
       </div>
 
-      <div className="explain-strip">
-        <strong>Visible handoff:</strong> use the TTP decision from Step 3. Client backend decrypts
-        `encrypted_session_key_for_user` with the private RSA key it generated in Step 1.
-      </div>
-
       <form className="stacked-form" onSubmit={handleSubmit}>
         <button type="button" className="secondary-button" disabled={!decision?.authenticated} onClick={fillFromDecision}>
           Fill from TTP decision

@@ -17,7 +17,6 @@ import AttackSimulationPanel from './components/AttackSimulationPanel.jsx'
 import AuthenticationPanel from './components/AuthenticationPanel.jsx'
 import DataExchangePanel from './components/DataExchangePanel.jsx'
 import LogPanel from './components/LogPanel.jsx'
-import ProtocolTimeline from './components/ProtocolTimeline.jsx'
 import RegistrationPanel from './components/RegistrationPanel.jsx'
 import ServerRegistrationPanel from './components/ServerRegistrationPanel.jsx'
 import ServiceCard from './components/ServiceCard.jsx'
@@ -266,14 +265,6 @@ function App() {
               <ServiceCard title={title} service={service.service} status={service.status} key={title} />
             ))}
           </div>
-
-          <ProtocolTimeline
-            identity={identity}
-            serverIdentity={serverIdentity}
-            decision={decision}
-            session={session}
-            exchange={exchange}
-          />
         </aside>
 
         <section className="scenario-grid">
